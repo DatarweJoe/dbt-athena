@@ -86,14 +86,24 @@
 
 {% endmacro %}
 
-{% macro iceberg_data_type(col_type) -%}
-	{%- if 'varchar' in col_type -%}
-        {% set data_type = 'string' -%}
-    {%- elif 'integer' == col_type -%}
-        {% set data_type = 'int' -%}
-    {%- else -%}
-        {% set data_type = col_type -%}
-    {%- endif -%}
-
-    {{ return(data_type) }}
+{% macro iceberg_data_type(athena_type) -%}
+    -- TODO: add support for complex data types
+    {% set athena_to_iceberg_type_map = ({
+      -- Mappings pulled from https://docs.aws.amazon.com/athena/latest/ug/querying-iceberg-supported-data-types.html
+      "boolean": "boolean", 
+      "tinyint": "int", 
+      "smallint": "int", 
+      "int": "int", 
+      "bigint": "long", 
+      "double": "double",
+      "float": "float",
+      "char": "string",
+      "string": "string",
+      "varchar": "string",
+      "binary": "binary",
+      "date": "date",
+      "timestamp": "timestamp",
+      "timestamptz": "timestamp"}) %}
+    {% set iceberg_type = athena_to_iceberg_type_map[athena_type] %}
+    {{ return(iceberg_type) }}    
 {% endmacro %}
