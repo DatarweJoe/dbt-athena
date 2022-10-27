@@ -66,7 +66,7 @@
   {%- set external_location = adapter.get_unique_external_location(external_location, strict_location, target.s3_staging_dir, relation.name) -%}
 
   {%- for col in dest_columns -%}
-	{% set dtype = iceberg_data_type(col.dtype) -%}
+	  {% set dtype = iceberg_data_type(col.dtype) -%}
   	{% set _ = dest_columns_with_type.append(col.name + ' ' + dtype) -%}
   {%- endfor -%}
 
@@ -88,8 +88,8 @@
 
 {% macro iceberg_data_type(athena_type) -%}
     -- TODO: add support for complex data types
+    -- Mappings pulled from https://docs.aws.amazon.com/athena/latest/ug/querying-iceberg-supported-data-types.html
     {% set athena_to_iceberg_type_map = ({
-      -- Mappings pulled from https://docs.aws.amazon.com/athena/latest/ug/querying-iceberg-supported-data-types.html
       "boolean": "boolean", 
       "tinyint": "int", 
       "smallint": "int", 
