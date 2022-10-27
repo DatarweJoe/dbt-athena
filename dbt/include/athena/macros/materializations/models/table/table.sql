@@ -1,19 +1,14 @@
 {% materialization table, adapter='athena' -%}
-  {%- set identifier = model['alias'] -%}
   {%- set format = config.get('format', default='parquet') -%}
   {%- set iceberg = config.get('iceberg', default=False) -%}
-  {%- set old_relation = adapter.get_relation(database=database, 
-                                              schema=schema, 
-                                              identifier=identifier) -%}
-  {%- set target_relation = api.Relation.create(identifier=identifier,
-                                                schema=schema,
-                                                database=database,
-                                                type='table') -%}
+
+  {%- set existing_relation = adapter.load_relation(this) -%}
+  {%- set target_relation = this.incorporate(type='table') -%}
 
   {{ run_hooks(pre_hooks) }}
 
-  {{ materialize_table_iceberg(format, old_relation, target_relation, tmp_relation, sql) 
-     if iceberg else materialize_table(format, old_relation, target_relation, sql) }}
+  {{ materialize_table_iceberg(format, existing_relation, target_relation, sql) 
+     if iceberg else materialize_table(format, existing_relation, target_relation, sql) }}
 
   {{ run_hooks(post_hooks) }}
 
