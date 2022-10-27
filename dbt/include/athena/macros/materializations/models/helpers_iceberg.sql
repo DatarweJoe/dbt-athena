@@ -31,7 +31,7 @@
   {% do run_query(create_iceberg_table_definition(target_relation, dest_columns)) %}
 
   -- return final insert statement
-  {{ return(incremental_insert(tmp_relation, target_relation)) }}
+  {{ return(generate_incremental_insert_query(tmp_relation, target_relation)) }}
 
 {% endmacro %}
 
