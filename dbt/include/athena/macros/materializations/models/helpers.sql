@@ -15,3 +15,7 @@
     {% do run_query(create_table_as(True, tmp_relation, sql)) %}
     {{ return(tmp_relation) }}
 {%- endmacro %}
+
+{% macro list_to_csv(list) %}
+  {{ return(list | map(attribute='quoted') | join(', ')) }}
+{%- endmacro %}
