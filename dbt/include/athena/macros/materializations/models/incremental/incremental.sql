@@ -1,53 +1,67 @@
 {% materialization incremental, adapter='athena' -%}
-
+  
   {% set unique_key = config.get('unique_key') %}
-  {% set overwrite_msg -%}
-    Athena adapter does not support 'unique_key'
-  {%- endset %}
-  {% if unique_key is not none %}
-    {% do exceptions.raise_compiler_error(overwrite_msg) %}
-  {% endif %}
+  {{ validate_get_unique_key(unique_key) }}
 
-  {% set raw_strategy = config.get('incremental_strategy', default='insert_overwrite') %}
-  {% set strategy = validate_get_incremental_strategy(raw_strategy) %}
+  {% set strategy = config.get('incremental_strategy', default='insert_overwrite') %}
+  {{ validate_get_incremental_strategy(strategy) }}
 
+  {% set iceberg = config.get('iceberg', default=False) %}
+  {% set format = config.get('format', default=False) %}
   {% set partitioned_by = config.get('partitioned_by', default=none) %}
   {% set target_relation = this.incorporate(type='table') %}
   {% set existing_relation = load_relation(this) %}
+  -- Generate the name of a tmp relation, this doesn't materialize a relation
+  -- and the temp relation may not be required.
   {% set tmp_relation = make_temp_relation(this) %}
 
   {{ run_hooks(pre_hooks, inside_transaction=False) }}
 
   -- `BEGIN` happens here:
   {{ run_hooks(pre_hooks, inside_transaction=True) }}
-
   {% set to_drop = [] %}
   {% if existing_relation is none %}
-      {% set build_sql = create_table_as(False, target_relation, sql) %}
-  {% elif existing_relation.is_view or should_full_refresh() %}
+      -- If the relation doesn't exist we build from scratch.
+      -- Athena's iceberg implementation doesn't currently support CTAS so we
+      -- need to use a workaround.
+      {% set build_sql = create_table_iceberg(target_relation, existing_relation, tmp_relation, sql)
+                      if iceberg else create_table_as(False, target_relation, sql) %}
+  {% elif existing_relation.is_view %}
+      -- If the relation exists as a view drop it and build from scratch.
       {% do adapter.drop_relation(existing_relation) %}
-      {% set build_sql = create_table_as(False, target_relation, sql) %}
+      {% set build_sql = create_table_iceberg(target_relation, existing_relation, tmp_relation, sql)
+                        if iceberg else create_table_as(False, target_relation, sql) %}
+  {% elif should_full_refresh() %}
+      -- If we're running a full refresh drop the existing relation and build
+      -- from scratch.
+      {% if iceberg %}
+        -- Iceberg tables are managed tables in Athena so dropping one
+        -- automatically removes data from s3, no need to handle this ourselves.
+        {% do run_query(drop_iceberg(existing_relation)) %}
+        {% set build_sql = create_table_iceberg(target_relation, existing_relation, tmp_relation, sql) %}
+      {% else %}
+        {% do adapter.drop_relation(existing_relation) %}
+        {% set build_sql = create_table_as(False, target_relation, sql) %}
+      {% endif %}
+
   {% elif partitioned_by is not none and strategy == 'insert_overwrite' %}
-      {% set tmp_relation = make_temp_relation(target_relation) %}
-      {% if tmp_relation is not none %}
-          {% do adapter.drop_relation(tmp_relation) %}
-      {% endif %}
-      {% do run_query(create_table_as(True, tmp_relation, sql)) %}
+      -- The table exists, is partitioned and we're using an insert_overwrite
+      -- strategy, clean up existing partitions and run an incremental insert.
+      {% set tmp_relation = materialize_temp_relation(target_relation, sql) %}
       {% do delete_overlapping_partitions(target_relation, tmp_relation, partitioned_by) %}
-      {% set build_sql = incremental_insert(tmp_relation, target_relation) %}
+      {% set build_sql = generate_incremental_insert_query(tmp_relation, target_relation) %}
       {% do to_drop.append(tmp_relation) %}
+
   {% else %}
-      {% set tmp_relation = make_temp_relation(target_relation) %}
-      {% if tmp_relation is not none %}
-          {% do adapter.drop_relation(tmp_relation) %}
-      {% endif %}
-      {% do run_query(create_table_as(True, tmp_relation, sql)) %}
-      {% set build_sql = incremental_insert(tmp_relation, target_relation) %}
+      -- The table exists and is not partitioned or we're using an append
+      -- strategy, run an incremental insert.
+      {% set tmp_relation = materialize_temp_relation(target_relation, sql) %}
+      {% set build_sql = generate_incremental_insert_query(tmp_relation, target_relation) %}
       {% do to_drop.append(tmp_relation) %}
   {% endif %}
 
   {% call statement("main") %}
-      {{ build_sql }}
+    {{ build_sql }}
   {% endcall %}
 
   -- set table properties
