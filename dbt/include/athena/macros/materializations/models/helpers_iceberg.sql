@@ -2,29 +2,15 @@
   drop table if exists {{ relation }}
 {% endmacro %}
 
-{% macro create_table_iceberg(relation, old_relation, tmp_relation, sql) -%}
-  {%- set external_location = config.get('external_location', default=none) -%}
-  {%- set staging_location = config.get('staging_location') -%}
-  {%- set partitioned_by = config.get('partitioned_by', default=none) -%}
-  {%- set bucketed_by = config.get('bucketed_by', default=none) -%}
-  {%- set bucket_count = config.get('bucket_count', default=none) -%}
-  {%- set write_compression = config.get('write_compression', default=none) -%}
-
-  {%- set target_relation = this.incorporate(type='table') -%}
-
-  {% if tmp_relation is not none %}
-     {% do adapter.drop_relation(tmp_relation) %}
-  {% endif %}
-
-  -- create tmp table
-  {% do run_query(create_tmp_table_iceberg(tmp_relation, sql, staging_location)) %}
+{% macro create_table_iceberg(existing_relation, target_relation, sql) -%}
+  {%- set tmp_relation = materialize_temp_relation(target_relation, sql) -%}
 
   -- get columns from tmp table to retrieve metadata
   {%- set dest_columns = adapter.get_columns_in_relation(tmp_relation) -%}
 
   -- drop old relation after tmp table is ready
-  {%- if old_relation is not none -%}
-  	{% do run_query(drop_iceberg(old_relation)) %}
+  {%- if existing_relation is not none -%}
+  	{% do run_query(drop_iceberg(existing_relation)) %}
   {%- endif -%}
 
   -- create iceberg table
@@ -32,23 +18,10 @@
 
   -- return final insert statement
   {{ return(generate_incremental_insert_query(tmp_relation, target_relation)) }}
-
-{% endmacro %}
-
-
-{% macro create_tmp_table_iceberg(relation, sql, staging_location) -%}
-  create table
-    {{ relation }}
-
-    with (
-        write_compression='snappy',
-        format='parquet'
-    )
-  as
-    {{ sql }}
 {% endmacro %}
 
 {% macro create_iceberg_table_definition(relation, dest_columns) -%}
+  -- TODO: add support for bucketing
   {%- set external_location = config.get('external_location', default=none) -%}
   {%- set strict_location = config.get('strict_location', default=true) -%}
   {%- set partitioned_by = config.get('partitioned_by', default=none) -%}
@@ -83,7 +56,6 @@
   TBLPROPERTIES (
   	{{table_properties_csv}}
   )
-
 {% endmacro %}
 
 {% macro iceberg_data_type(athena_type) -%}
@@ -106,4 +78,15 @@
       "timestamptz": "timestamp"}) %}
     {% set iceberg_type = athena_to_iceberg_type_map[athena_type] %}
     {{ return(iceberg_type) }}    
+{% endmacro %}
+
+{% macro validate_format_iceberg(format) -%}
+    valid_formats = ['parquet']
+    {% set invalid_iceberg_format_msg -%}
+        Invalid format provided for iceberg table: {{ format }}
+        Expected one of: {{ valid_formats | map(attribute='quoted') | join(', ') }}
+    {%- endset %}
+    {%- if format not in valid_formats -%}
+        {% do exceptions.raise_compiler_error(invalid_iceberg_format_msg) %}
+    {%- endif -%}  
 {% endmacro %}
