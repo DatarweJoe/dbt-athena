@@ -1,17 +1,27 @@
 {% macro validate_get_incremental_strategy(raw_strategy) %}
+  {% set valid_strategies = ['append', 'insert_overwrite'] %}
   {% set invalid_strategy_msg -%}
     Invalid incremental strategy provided: {{ raw_strategy }}
-    Expected one of: 'append', 'insert_overwrite'
+    Expected one of: {{ valid_strategies | map(attribute='quoted') | join(', ') }}
   {%- endset %}
 
-  {% if raw_strategy not in ['append', 'insert_overwrite'] %}
+  {% if raw_strategy not in {{ valid_strategies }} %}
     {% do exceptions.raise_compiler_error(invalid_strategy_msg) %}
   {% endif %}
 
   {% do return(raw_strategy) %}
 {% endmacro %}
 
-{% macro incremental_insert(tmp_relation, target_relation, statement_name="main") %}
+{% macro validate_get_unique_key(unique_key) %}
+    {% set overwrite_msg -%}
+      Athena adapter does not support 'unique_key'
+    {%- endset %}
+    {% if unique_key is not none %}
+      {% do exceptions.raise_compiler_error(overwrite_msg) %}
+    {% endif %}
+{%- endmacro %}
+
+{% macro generate_incremental_insert_query(tmp_relation, target_relation, statement_name="main") %}
     {%- set dest_columns = adapter.get_columns_in_relation(target_relation) -%}
     {%- set dest_cols_csv = dest_columns | map(attribute='quoted') | join(', ') -%}
 
