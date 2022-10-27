@@ -5,7 +5,7 @@
     Expected one of: {{ valid_strategies | map(attribute='quoted') | join(', ') }}
   {%- endset %}
 
-  {% if raw_strategy not in {{ valid_strategies }} %}
+  {% if raw_strategy not in valid_strategies %}
     {% do exceptions.raise_compiler_error(invalid_strategy_msg) %}
   {% endif %}
 
