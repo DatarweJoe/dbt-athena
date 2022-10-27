@@ -5,3 +5,13 @@
         alter table {{ relation }} set tblproperties ('classification' = '{{ format }}')
     {%- endcall %}
 {%- endmacro %}
+
+{% macro materialize_temp_relation(target_relation, sql) -%}
+    -- Materialize a query into a temp table
+    {% set tmp_relation = make_temp_relation(target_relation) %}
+    {% if tmp_relation is not none %}
+        {% do adapter.drop_relation(tmp_relation) %}
+    {% endif %}
+    {% do run_query(create_table_as(True, tmp_relation, sql)) %}
+    {{ return(tmp_relation) }}
+{%- endmacro %}
