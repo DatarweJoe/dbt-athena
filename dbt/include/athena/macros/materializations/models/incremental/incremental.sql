@@ -7,7 +7,7 @@
   {{ validate_get_incremental_strategy(strategy) }}
 
   {% set iceberg = config.get('iceberg', default=False) %}
-  {% set format = config.get('format', default=False) %}
+  {% set format = config.get('format', default='parquet') %}
   {% set partitioned_by = config.get('partitioned_by', default=none) %}
   {% set target_relation = this.incorporate(type='table') %}
   {% set existing_relation = load_relation(this) %}
