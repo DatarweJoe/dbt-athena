@@ -32,18 +32,25 @@
     );
 {%- endmacro %}
 
-{% macro delete_overlapping_partitions(target_relation, tmp_relation, partitioned_by) %}
-  {%- set partitioned_keys = partitioned_by | tojson | replace('\"', '') | replace('[', '') | replace(']', '') -%}
+
+{% macro get_partitions(partition_cols) %}
+  {%- set partitioned_keys = list_to_csv(partitioned_by) -%}
   {% call statement('get_partitions', fetch_result=True) %}
     select distinct {{partitioned_keys}} from {{ tmp_relation }};
   {% endcall %}
   {%- set table = load_result('get_partitions').table -%}
-  {%- set rows = table.rows -%}
+  {% do return(table) %}
+{% endmacro %}
+
+
+{% macro get_partition_expressions(relation, partition_cols) %}
+  {% set distinct_partitions = get_partitions(partition_cols) %}
+  {%- set rows = distinct_partitions.rows -%}
   {%- set partitions = [] -%}
   {%- for row in rows -%}
     {%- set single_partition = [] -%}
     {%- for col in row -%}
-      {%- set column_type = adapter.convert_type(table, loop.index0) -%}
+      {%- set column_type = adapter.convert_type(distinct_partitions, loop.index0) -%}
       {%- if column_type == 'integer' -%}
         {%- set value = col|string -%}
       {%- elif column_type == 'string' -%}
@@ -57,8 +64,26 @@
     {%- endfor -%}
     {%- set single_partition_expression = single_partition | join(' and ') -%}
     {%- do partitions.append('(' + single_partition_expression + ')') -%}
+    {%- do return(partitions) -%}
   {%- endfor -%}
-  {%- for i in range(partitions | length) %}
-    {%- do adapter.clean_up_partitions(target_relation.schema, target_relation.table, partitions[i]) -%}
-  {%- endfor -%}
+{% endmacro %}
+
+{% macro delete_overlapping_partitions(target_relation, tmp_relation, partitioned_by, iceberg = False) %}
+  {%- set partition_expressions = get_partition_expressions(tmp_relation, partitioned_by) -%}
+  {%- if (partition_expressions | length) > 100 -%}
+    {% set error_message %}
+      A maximum of one-hundred (100) partitions can be written to by a single query.
+    {% endset %}
+    {% do exceptions.raise_compiler_error(error_message) %}
+  {%- endif -%}
+  {%- set full_partition_expression = partition_expressions | join(' or ') -%}
+  {% if iceberg %}
+    {%- set delete_partition_data_statement -%}
+      DELETE FROM {{ target_relation }}
+      WHERE {{ full_partition_expression }}
+    {%- endset %}
+    {%- do run_query(delete_partition_data_statement)}
+  {% else %}
+    {%- do adapter.clean_up_partitions(target_relation.schema, target_relation.table, full_partition_expression) -%}
+  {-% endif -%}
 {%- endmacro %}
