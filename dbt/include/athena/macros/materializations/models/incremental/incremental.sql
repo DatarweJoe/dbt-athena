@@ -46,7 +46,7 @@
       -- The table exists, is partitioned and we're using an insert_overwrite
       -- strategy, clean up existing partitions and run an incremental insert.
       {% set tmp_relation = materialize_temp_relation(target_relation, sql) %}
-      {% do delete_overlapping_partitions(target_relation, tmp_relation, partitioned_by) %}
+      {% do delete_overlapping_partitions(target_relation, tmp_relation, partitioned_by, iceberg = iceberg) %}
       {% set build_sql = generate_incremental_insert_query(tmp_relation, target_relation) %}
   {% else %}
       -- The table exists and is not partitioned or we're using an append
