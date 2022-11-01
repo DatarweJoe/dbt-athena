@@ -35,11 +35,11 @@
         -- Iceberg tables are managed tables in Athena so dropping one
         -- automatically removes data from s3, no need to handle this.
         {% do run_query(drop_iceberg(existing_relation)) %}
-        {{ materialize_table_iceberg(format, existing_relation, target_relation }}
+        {{ materialize_table_iceberg(format, existing_relation, target_relation) }}
         --{% set build_sql = create_table_iceberg(target_relation, existing_relation, tmp_relation, sql) %}
       {% else %}
         {% do adapter.drop_relation(existing_relation) %}
-        {{ materialize_table(format, existing_relation, target_relation }}
+        {{ materialize_table(format, existing_relation, target_relation) }}
         --{% set build_sql = create_table_as(False, target_relation, sql) %}
       {% endif %}
   {% elif partitioned_by is not none and strategy == 'insert_overwrite' %}

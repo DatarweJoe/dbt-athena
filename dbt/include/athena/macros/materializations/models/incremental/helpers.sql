@@ -29,14 +29,14 @@
     (
        select {{ dest_cols_csv }}
        from {{ tmp_relation }}
-    );
+    )
 {%- endmacro %}
 
 
-{% macro get_partitions(partition_cols) %}
-  {%- set partitioned_keys = list_to_csv(partitioned_by) -%}
+{% macro get_partitions(partition_cols, relation) %}
+  {%- set partitioned_keys = list_to_csv(partition_cols) -%}
   {% call statement('get_partitions', fetch_result=True) %}
-    select distinct {{partitioned_keys}} from {{ tmp_relation }};
+    select distinct {{partitioned_keys}} from {{ relation }}
   {% endcall %}
   {%- set table = load_result('get_partitions').table -%}
   {% do return(table) %}
@@ -44,7 +44,7 @@
 
 
 {% macro get_partition_expressions(relation, partition_cols) %}
-  {% set distinct_partitions = get_partitions(partition_cols) %}
+  {% set distinct_partitions = get_partitions(partition_cols, relation) %}
   {%- set rows = distinct_partitions.rows -%}
   {%- set partitions = [] -%}
   {%- for row in rows -%}
@@ -60,7 +60,7 @@
       {%- else -%}
         {%- do exceptions.raise_compiler_error('Need to add support for column type ' + column_type) -%}
       {%- endif -%}
-      {%- do single_partition.append(partitioned_by[loop.index0] + '=' + value) -%}
+      {%- do single_partition.append(partition_cols[loop.index0] + '=' + value) -%}
     {%- endfor -%}
     {%- set single_partition_expression = single_partition | join(' and ') -%}
     {%- do partitions.append('(' + single_partition_expression + ')') -%}
@@ -82,8 +82,8 @@
       DELETE FROM {{ target_relation }}
       WHERE {{ full_partition_expression }}
     {%- endset %}
-    {%- do run_query(delete_partition_data_statement)}
+    {%- do run_query(delete_partition_data_statement) -%}
   {% else %}
     {%- do adapter.clean_up_partitions(target_relation.schema, target_relation.table, full_partition_expression) -%}
-  {-% endif -%}
+  {%- endif -%}
 {%- endmacro %}

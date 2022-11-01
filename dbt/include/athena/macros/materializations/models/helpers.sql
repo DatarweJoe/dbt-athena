@@ -17,5 +17,5 @@
 {%- endmacro %}
 
 {% macro list_to_csv(list) %}
-  {{ return(list | map(attribute='quoted') | join(', ')) }}
+  {{ return(list | join(', ')) }}
 {%- endmacro %}
