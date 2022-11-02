@@ -83,6 +83,12 @@
       WHERE {{ full_partition_expression }}
     {%- endset %}
     {%- do run_query(delete_partition_data_statement) -%}
+
+    {%- set optimize_table_statement -%}
+      OPTIMIZE {{ target_relation }} REWRITE DATA USING BIN_PACK
+      WHERE {{ full_partition_expression }}
+    {%- endset %}
+    {%- do run_query(optimize_table_statement) -%}
   {% else %}
     {%- do adapter.clean_up_partitions(target_relation.schema, target_relation.table, full_partition_expression) -%}
   {%- endif -%}
