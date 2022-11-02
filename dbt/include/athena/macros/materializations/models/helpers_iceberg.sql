@@ -81,7 +81,7 @@
 {% endmacro %}
 
 {% macro validate_format_iceberg(format) -%}
-    valid_formats = ['parquet']
+    {% set valid_formats = ['parquet'] %}
     {% set invalid_iceberg_format_msg -%}
         Invalid format provided for iceberg table: {{ format }}
         Expected one of: {{ valid_formats | map(attribute='quoted') | join(', ') }}
