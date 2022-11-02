@@ -12,6 +12,11 @@ class _QueryComment(dbt.adapters.base.query_headers._QueryComment):
         if not self.query_comment:
             return sql
 
+        if sql.lower().strip().startswith("optimize"):
+            # Iceberg OPTIMIZE <TABLE> ... queries fail if a comment is present
+            # anywhere in the query.
+            return sql
+
         if self.append:
             # replace last ';' with '<comment>;'
             sql = sql.rstrip()
