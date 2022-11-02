@@ -21,13 +21,13 @@
       -- If the relation doesn't exist we build from scratch.
       -- Athena's iceberg implementation doesn't currently support CTAS so we
       -- need to use a temp table as a workaround.
-      {{ materialize_table_iceberg(format, existing_relation, target_relation, sql) 
-         if iceberg else materialize_table(format, existing_relation, target_relation, sql) }}
+      {% set build_sql = materialize_table_iceberg(format, existing_relation, target_relation, sql) 
+         if iceberg else materialize_table(format, existing_relation, target_relation, sql) %}
   {% elif existing_relation.is_view %}
       -- If the relation exists as a view drop it and build from scratch.
       {% do adapter.drop_relation(existing_relation) %}
-      {{ materialize_table_iceberg(format, existing_relation, target_relation, sql) 
-         if iceberg else materialize_table(format, existing_relation, target_relation, sql) }}
+      {% set build_sql = materialize_table_iceberg(format, existing_relation, target_relation, sql) 
+         if iceberg else materialize_table(format, existing_relation, target_relation, sql) %}
   {% elif should_full_refresh() %}
       -- If we're running a full refresh drop the existing relation and build
       -- from scratch.
@@ -35,11 +35,10 @@
         -- Iceberg tables are managed tables in Athena so dropping one
         -- automatically removes data from s3, no need to handle this.
         {% do run_query(drop_iceberg(existing_relation)) %}
-        {{ materialize_table_iceberg(format, existing_relation, target_relation) }}
-        --{% set build_sql = create_table_iceberg(target_relation, existing_relation, tmp_relation, sql) %}
+        {% set build_sql = materialize_table_iceberg(format, existing_relation, target_relation, sql) %}
       {% else %}
         {% do adapter.drop_relation(existing_relation) %}
-        {{ materialize_table(format, existing_relation, target_relation) }}
+        {% set build_sql = materialize_table(format, existing_relation, target_relation) %}
         --{% set build_sql = create_table_as(False, target_relation, sql) %}
       {% endif %}
   {% elif partitioned_by is not none and strategy == 'insert_overwrite' %}
@@ -55,10 +54,12 @@
       {% set build_sql = generate_incremental_insert_query(tmp_relation, target_relation) %}
   {% endif %}
 
-  -- {% call statement("main") %}
-  --   {{ build_sql }}
-  -- {% endcall %}
+  -- Execute the build sql
+  {% call statement("main") %}
+    {{ build_sql }}
+  {% endcall %}
 
+  -- If a temp table was used then drop it 
   {% set tmp_relation = make_temp_relation(target_relation) %}
   {% if tmp_relation is not none %}
      {% do adapter.drop_relation(tmp_relation) %}
