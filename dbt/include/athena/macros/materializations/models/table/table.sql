@@ -2,7 +2,7 @@
   {%- set format = config.get('format', default='parquet') -%}
   {%- set iceberg = config.get('iceberg', default=False) -%}
 
-  {%- set existing_relation = adapter.load_relation(this) -%}
+  {%- set existing_relation = load_relation(this) -%}
   {%- set target_relation = this.incorporate(type='table') -%}
 
   {{ run_hooks(pre_hooks) }}
