@@ -7,8 +7,8 @@
 
   {{ run_hooks(pre_hooks) }}
 
-  {{% set build_sql = materialize_table_iceberg(format, existing_relation, target_relation, sql)
-      if iceberg else materialize_table(format, existing_relation, target_relation, sql) }}
+  {% set build_sql = materialize_table_iceberg(format, existing_relation, target_relation, sql)
+      if iceberg else materialize_table(format, existing_relation, target_relation, sql) %}
 
   {% call statement("main") %}
      {{ build_sql }}
