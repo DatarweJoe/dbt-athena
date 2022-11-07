@@ -44,18 +44,21 @@
   {%- endfor -%}
 
   {%- set dest_columns_with_type_csv = dest_columns_with_type | join(', ') -%}
-
-  CREATE TABLE {{ relation }} (
-    {{ dest_columns_with_type_csv }}
-  )
-  {%- if partitioned_by is not none %}
-    {%- set partitioned_by_csv = partitioned_by | join(', ') -%}
-  	PARTITIONED BY ({{partitioned_by_csv}})
-  {%- endif %}
-  LOCATION '{{ external_location }}'
-  TBLPROPERTIES (
-  	{{table_properties_csv}}
-  )
+  
+  {%- set create_table_query -%}
+    CREATE TABLE {{ relation }} (
+      {{ dest_columns_with_type_csv }}
+    )
+    {%- if partitioned_by is not none %}
+      {%- set partitioned_by_csv = partitioned_by | join(', ') -%}
+      PARTITIONED BY ({{partitioned_by_csv}})
+    {%- endif %}
+    LOCATION '{{ external_location }}'
+    TBLPROPERTIES (
+      {{table_properties_csv}}
+    )
+  {%- endset -%}
+  {%- do return(create_table_query) -%}
 {% endmacro %}
 
 {% macro iceberg_data_type(athena_type) -%}
