@@ -46,6 +46,12 @@ class AthenaAdapter(SQLAdapter):
     ) -> str:
         return "timestamp"
 
+
+    @available
+    def log_query(self, query: str, file_name: str = "output.sql"):
+        with open(file_name, "w+") as f:
+            f.write(query)
+
     @available
     def s3_uuid_table_location(self):
         conn = self.connections.get_thread_connection()
