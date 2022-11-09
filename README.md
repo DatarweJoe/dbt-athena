@@ -3,9 +3,10 @@
 * Supports dbt version `1.0.*`
 * Supports [Seeds][seeds]
 * Correctly detects views and their columns
-* Support [incremental models][incremental]
+* Supports [incremental models][incremental]
   * Support two incremental update strategies: `insert_overwrite` and `append`
   * Does **not** support the use of `unique_key`
+* Supports iceberg tables
 * **Only** supports Athena engine 2
   * [Changing Athena Engine Versions][engine-change]
 
@@ -96,6 +97,12 @@ _Additional information_
   * The compression type to use for any storage format that allows compression to be specified. To see which options are available, check out [CREATE TABLE AS][create-table-as]
 * `field_delimiter` (`default=none`)
   * Custom field delimiter, for when format is set to `TEXTFILE`
+* `table_type` (`default=none`)
+  * The type of table to build
+  * Supports `iceberg`
+  * If `none` then a standard table will be built
+* `table_properties` (`default={}`)
+  * A dictionary of properties to be added to the table metadata
   
 More information: [CREATE TABLE AS][create-table-as]
 
