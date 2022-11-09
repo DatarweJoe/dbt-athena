@@ -25,20 +25,20 @@
   {%- set external_location = config.get('external_location', default=none) -%}
   {%- set strict_location = config.get('strict_location', default=true) -%}
   {%- set partitioned_by = config.get('partitioned_by', default=none) -%}
-
-  {%- set table_properties = config.get('table_properties', default={}) -%}
-  {%- set _ = table_properties.update({'table_type': 'ICEBERG'}) -%}
-  {%- set table_properties_csv = format_table_properties(table_properties) -%}
-
-  {%- set dest_columns_with_type = [] -%}
-
   {%- set external_location = adapter.get_unique_external_location(external_location, strict_location, target.s3_staging_dir, relation.name) -%}
 
+  {%- set write_compression = config.get('write_compression', default=none) -%}
+  {%- set write_target_data_file_size_bytes = config.get('write_target_data_file_size_bytes', default=none) -%}
+  {%- set optimize_rewrite_min_data_file_size_bytes = config.get('optimize_rewrite_min_data_file_size_bytes', default=none) -%}
+  {%- set optimize_rewrite_max_data_file_size_bytes = config.get('optimize_rewrite_max_data_file_size_bytes', default=none) -%}
+  {%- set optimize_rewrite_data_file_threshold = config.get('optimize_rewrite_data_file_threshold', default=none) -%}
+  {%- set optimize_rewrite_delete_file_threshold = config.get('optimize_rewrite_delete_file_threshold', default=none) -%}
+
+  {%- set dest_columns_with_type = [] -%}
   {%- for col in dest_columns -%}
 	  {% set dtype = iceberg_data_type(col.dtype) -%}
   	{% set _ = dest_columns_with_type.append(col.name + ' ' + dtype) -%}
   {%- endfor -%}
-
   {%- set dest_columns_with_type_csv = dest_columns_with_type | join(', ') -%}
   
   {%- set create_table_query -%}
@@ -51,7 +51,25 @@
     {%- endif %}
     LOCATION '{{ external_location }}'
     TBLPROPERTIES (
-      {{table_properties_csv}}
+      {%- if write_compression is not none -%}
+        'write_compression'='{{ write_compression }}',
+      {%- endif -%}
+      {%- if write_target_data_file_size_bytes is not none -%}
+        'write_target_data_file_size_bytes'='{{ write_target_data_file_size_bytes }}',
+      {%- endif -%}
+      {%- if optimize_rewrite_min_data_file_size_bytes is not none -%}
+        'optimize_rewrite_min_data_file_size_bytes'='{{ optimize_rewrite_min_data_file_size_bytes }}',
+      {%- endif -%}
+      {%- if optimize_rewrite_max_data_file_size_bytes is not none -%}
+        'optimize_rewrite_max_data_file_size_bytes'='{{ optimize_rewrite_max_data_file_size_bytes }}',
+      {%- endif -%}
+      {%- if optimize_rewrite_data_file_threshold is not none -%}
+        'optimize_rewrite_data_file_threshold'='{{ optimize_rewrite_data_file_threshold }}',
+      {%- endif -%}
+      {%- if optimize_rewrite_delete_file_threshold is not none -%}
+        'optimize_rewrite_delete_file_threshold'='{{ optimize_rewrite_delete_file_threshold }}',
+      {%- endif -%}
+      'table_type'='iceberg'
     )
   {%- endset -%}
   {%- do return(create_table_query) -%}
