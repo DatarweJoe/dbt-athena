@@ -7,7 +7,6 @@
   {{ validate_get_incremental_strategy(strategy) }}
 
   {%- set table_type = config.get('table_type') | lower -%}
-  {% set iceberg = config.get('iceberg', default=False) %}
 
   {% set format = config.get('format', default='parquet') %}
   {% set partitioned_by = config.get('partitioned_by', default=none) %}
