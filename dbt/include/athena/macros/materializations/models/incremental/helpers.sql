@@ -68,7 +68,7 @@
   {%- endfor -%}
 {% endmacro %}
 
-{% macro delete_overlapping_partitions(target_relation, tmp_relation, partitioned_by, iceberg = False) %}
+{% macro delete_overlapping_partitions(target_relation, tmp_relation, partitioned_by, table_type = none) %}
   {%- set partition_expressions = get_partition_expressions(tmp_relation, partitioned_by) -%}
   {%- if (partition_expressions | length) > 100 -%}
     {% set error_message %}
@@ -77,19 +77,26 @@
     {% do exceptions.raise_compiler_error(error_message) %}
   {%- endif -%}
   {%- set full_partition_expression = partition_expressions | join(' or ') -%}
-  {% if iceberg %}
-    {%- set delete_partition_data_statement -%}
-      DELETE FROM {{ target_relation }}
-      WHERE {{ full_partition_expression }}
-    {%- endset %}
-    {%- do run_query(delete_partition_data_statement) -%}
-
-    {%- set optimize_table_statement -%}
-      OPTIMIZE {{ target_relation }} REWRITE DATA USING BIN_PACK
-      WHERE {{ full_partition_expression }}
-    {%- endset %}
-    {%- do run_query(optimize_table_statement) -%}
+  {% if table_type = 'iceberg' %}
+    {{ delete_overlapping_partitions_iceberg(target_relation, full_partition_expression) }}
   {% else %}
     {%- do adapter.clean_up_partitions(target_relation.schema, target_relation.table, full_partition_expression) -%}
   {%- endif -%}
 {%- endmacro %}
+
+{%- macro delete_overlapping_partitions_iceberg(target_relation, partition_expression) -%}
+    {%- set delete_partition_data_statement -%}
+      DELETE FROM {{ target_relation }}
+      WHERE {{ partition_expression }}
+    {%- endset %}
+    {%- do run_query(delete_partition_data_statement) -%}
+
+    -- This statement materializes the delete markers written by the previous
+    -- query, if we don't run this then the delete markers will propagate to
+    -- the newly inserted data. 
+    {%- set optimize_table_statement -%}
+      OPTIMIZE {{ target_relation }} REWRITE DATA USING BIN_PACK
+      WHERE {{ partition_expression }}
+    {%- endset %}
+    {%- do run_query(optimize_table_statement) -%}
+{%- endmacro -%}

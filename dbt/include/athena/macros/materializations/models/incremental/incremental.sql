@@ -6,7 +6,9 @@
   {% set strategy = config.get('incremental_strategy', default='insert_overwrite') %}
   {{ validate_get_incremental_strategy(strategy) }}
 
+  {%- set table_type = config.get('table_type') | lower -%}
   {% set iceberg = config.get('iceberg', default=False) %}
+
   {% set format = config.get('format', default='parquet') %}
   {% set partitioned_by = config.get('partitioned_by', default=none) %}
   
@@ -22,16 +24,16 @@
       -- Athena's iceberg implementation doesn't currently support CTAS so we
       -- need to use a temp table as a workaround.
       {% set build_sql = materialize_table_iceberg(format, existing_relation, target_relation, sql) 
-         if iceberg else materialize_table(format, existing_relation, target_relation, sql) %}
+         if table_type == 'iceberg' else materialize_table(format, existing_relation, target_relation, sql) %}
   {% elif existing_relation.is_view %}
       -- If the relation exists as a view drop it and build from scratch.
       {% do adapter.drop_relation(existing_relation) %}
       {% set build_sql = materialize_table_iceberg(format, existing_relation, target_relation, sql) 
-         if iceberg else materialize_table(format, existing_relation, target_relation, sql) %}
+         if table_type == 'iceberg' else materialize_table(format, existing_relation, target_relation, sql) %}
   {% elif should_full_refresh() %}
       -- If we're running a full refresh drop the existing relation and build
       -- from scratch.
-      {% if iceberg %}
+      {% if table_type == 'iceberg' %}
         -- Iceberg tables are managed tables in Athena so dropping one
         -- automatically removes data from s3, no need to handle this.
         {% do run_query(drop_iceberg(existing_relation)) %}
@@ -45,7 +47,7 @@
       -- The table exists, is partitioned and we're using an insert_overwrite
       -- strategy, clean up existing partitions and run an incremental insert.
       {% set tmp_relation = materialize_temp_relation(target_relation, sql) %}
-      {% do delete_overlapping_partitions(target_relation, tmp_relation, partitioned_by, iceberg = iceberg) %}
+      {% do delete_overlapping_partitions(target_relation, tmp_relation, partitioned_by, table_type=table_type) %}
       {% set build_sql = generate_incremental_insert_query(tmp_relation, target_relation) %}
   {% else %}
       -- The table exists and is not partitioned or we're using an append
