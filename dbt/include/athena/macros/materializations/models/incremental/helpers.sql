@@ -77,7 +77,7 @@
     {% do exceptions.raise_compiler_error(error_message) %}
   {%- endif -%}
   {%- set full_partition_expression = partition_expressions | join(' or ') -%}
-  {% if table_type = 'iceberg' %}
+  {% if table_type == 'iceberg' %}
     {{ delete_overlapping_partitions_iceberg(target_relation, full_partition_expression) }}
   {% else %}
     {%- do adapter.clean_up_partitions(target_relation.schema, target_relation.table, full_partition_expression) -%}

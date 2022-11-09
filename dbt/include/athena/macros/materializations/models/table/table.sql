@@ -8,13 +8,13 @@
   {{ run_hooks(pre_hooks) }}
 
   {% set build_sql = materialize_table_iceberg(format, existing_relation, target_relation, sql)
-      if table_type = 'iceberg' else materialize_table(format, existing_relation, target_relation, sql) %}
+      if table_type == 'iceberg' else materialize_table(format, existing_relation, target_relation, sql) %}
 
   {% call statement("main") %}
      {{ build_sql }}
   {% endcall %}
 
-  {% if table_type = 'iceberg' %}
+  {% if table_type == 'iceberg' %}
     {% set tmp_relation = make_temp_relation(target_relation) %}
     {% do adapter.drop_relation(tmp_relation) %}
   {% else %}
