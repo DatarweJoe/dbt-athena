@@ -66,6 +66,13 @@
      {% do adapter.drop_relation(tmp_relation) %}
   {% endif %}
 
+  -- Set table properties
+  {%- if table_type != 'iceberg' -%}
+    {%- set table_properties = config.get('table_properties', default={}) -%}
+    {%- do table_properties.update({'format': format}) -%}
+    {{ set_table_properties(target_relation, table_properties) }}
+  {%- endif -%}
+
   {% do persist_docs(target_relation, model) %}
 
   {{ run_hooks(post_hooks, inside_transaction=True) }}

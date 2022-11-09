@@ -15,10 +15,14 @@
   {% endcall %}
 
   {% if table_type == 'iceberg' %}
+    -- Temp relation isn't used for non-iceberg tables
     {% set tmp_relation = make_temp_relation(target_relation) %}
     {% do adapter.drop_relation(tmp_relation) %}
   {% else %}
-    {{ set_table_classification(target_relation, format) }}
+    -- Set custom table properties, not supported on iceberg tables
+    {%- set table_properties = config.get('table_properties', default={}) -%}
+    {%- do table_properties.update({'format': format}) -%}
+    {{ set_table_properties(target_relation, table_properties) }}
   {% endif %}
 
   {{ run_hooks(post_hooks) }}
