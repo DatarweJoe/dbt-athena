@@ -6,13 +6,14 @@
 * Supports [incremental models][incremental]
   * Support two incremental update strategies: `insert_overwrite` and `append`
   * Does **not** support the use of `unique_key`
-* Supports iceberg tables
+* Supports [iceberg tables][iceberg]
 * **Only** supports Athena engine 2
   * [Changing Athena Engine Versions][engine-change]
 
 [seeds]: https://docs.getdbt.com/docs/building-a-dbt-project/seeds
 [incremental]: https://docs.getdbt.com/docs/building-a-dbt-project/building-models/configuring-incremental-models
 [engine-change]: https://docs.aws.amazon.com/athena/latest/ug/engine-versions-changing.html
+[iceberg]: https://docs.aws.amazon.com/athena/latest/ug/querying-iceberg.html
 
 ### Installation
 
@@ -97,18 +98,34 @@ _Additional information_
   * The compression type to use for any storage format that allows compression to be specified. To see which options are available, check out [CREATE TABLE AS][create-table-as]
 * `field_delimiter` (`default=none`)
   * Custom field delimiter, for when format is set to `TEXTFILE`
+* `table_properties` (`default={}`)
+  * A dictionary of custom properties to be added to the table metadata
+  * Not supported for iceberg tables
 * `table_type` (`default=none`)
   * The type of table to build
-  * Supports `iceberg`
+  * Supported values: `iceberg`, `none`
   * If `none` then a standard table will be built
-* `table_properties` (`default={}`)
-  * A dictionary of properties to be added to the table metadata
-  
+
 More information: [CREATE TABLE AS][create-table-as]
+
+#### Iceberg configurations
+* `write_target_data_file_size_bytes` (`default=536870912`)
+  * Target size in bytes of files produced by Athena
+* `optimize_rewrite_min_data_file_size_bytes` (`default=0.75*write_target_data_file_size_bytes`)
+  * Data optimization specific configuration. Files smaller than the specified value are included for optimization.
+* `optimize_rewrite_max_data_file_size_bytes` (`default=1.8*write_target_data_file_size_bytes`)
+  * Data optimization specific configuration. Files larger than the specified value are included for optimization.
+* `optimize_rewrite_data_file_threshold` (`default=5`)
+  * Data optimization specific configuration. If there are fewer data files that require optimization than the given threshold, the files are not rewritten. This allows the accumulation of more data files to produce files closer to the target size and skip unnecessary computation for cost saving.
+* `optimize_rewrite_delete_file_threshold` (`default=2`)
+  * Data optimization specific configuration. If there are fewer delete files associated with a data file than the threshold, the data file is not rewritten. This allows the accumulation of more delete files for each data file for cost saving.
+  
+More information: [Creating iceberg tables - Amazon Athena][creating-iceberg-tables]
 
 [run_started_at]: https://docs.getdbt.com/reference/dbt-jinja-functions/run_started_at
 [invocation_id]: https://docs.getdbt.com/reference/dbt-jinja-functions/invocation_id
 [create-table-as]: https://docs.aws.amazon.com/athena/latest/ug/create-table-as.html
+[creating-iceberg-tables]: https://docs.aws.amazon.com/athena/latest/ug/querying-iceberg-creating-tables.html
 
 #### Supported functionality
 
