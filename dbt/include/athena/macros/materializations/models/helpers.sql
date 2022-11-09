@@ -19,3 +19,12 @@
 {% macro list_to_csv(list) %}
   {{ return(list | join(', ')) }}
 {%- endmacro %}
+
+{%- macro format_table_properties(table_properties_dict) -%}
+    {%- set table_properties_formatted = [] -%}
+    {%- for k in table_properties_dict -%}
+  	    {% set _ = table_properties_formatted.append("'" + k|string + "'='" + table_properties[k]|string + "'") -%}
+    {%- endfor -%}
+    {%- set table_properties_csv = table_properties_formatted | join(', ') -%}
+    {%- do return(table_properties_csv) -%}
+{% endmacro -%}

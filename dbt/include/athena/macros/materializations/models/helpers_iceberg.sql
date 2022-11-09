@@ -25,16 +25,12 @@
   {%- set external_location = config.get('external_location', default=none) -%}
   {%- set strict_location = config.get('strict_location', default=true) -%}
   {%- set partitioned_by = config.get('partitioned_by', default=none) -%}
+
   {%- set table_properties = config.get('table_properties', default={}) -%}
   {%- set _ = table_properties.update({'table_type': 'ICEBERG'}) -%}
-  {%- set table_properties_formatted = [] -%}
+  {%- set table_properties_csv = format_table_properties(table_properties) -%}
+
   {%- set dest_columns_with_type = [] -%}
-
-  {%- for k in table_properties -%}
-  	{% set _ = table_properties_formatted.append("'" + k|string + "'='" + table_properties[k]|string + "'") -%}
-  {%- endfor -%}
-
-  {%- set table_properties_csv= table_properties_formatted | join(', ') -%}
 
   {%- set external_location = adapter.get_unique_external_location(external_location, strict_location, target.s3_staging_dir, relation.name) -%}
 

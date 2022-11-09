@@ -6,6 +6,7 @@
   {%- set field_delimiter = config.get('field_delimiter', default=none) -%}
   {%- set format = config.get('format', default='parquet') -%}
   {%- set write_compression = config.get('write_compression', default=none) -%}
+  {%- set table_properties = config.get('table_propertes', default={}) -%}
 
   create table
     {{ relation }}
@@ -29,6 +30,9 @@
       {%- if write_compression is not none %}
         write_compression='{{ write_compression }}',
       {%- endif %}
+      {%- if table_properties -%}
+        {{ format_table_properties(table_properties) }},
+      {%- endif -%}
         format='{{ format }}'
     )
   as
