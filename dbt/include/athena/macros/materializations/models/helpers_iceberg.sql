@@ -31,7 +31,7 @@
   {%- set dest_columns_with_type = [] -%}
 
   {%- for k in table_properties -%}
-  	{% set _ = table_properties_formatted.append("'" + k + "'='" + table_properties[k] + "'") -%}
+  	{% set _ = table_properties_formatted.append("'" + k|string + "'='" + table_properties[k]|string + "'") -%}
   {%- endfor -%}
 
   {%- set table_properties_csv= table_properties_formatted | join(', ') -%}
